@@ -1,0 +1,32 @@
+pipeline {
+  agent any
+  stages {
+    stage("Run Job DSL Tests") {
+      options {
+        timeout(time: 20, unit: 'MINUTES')
+      }
+
+      steps {
+        script {
+          // JAVA_OPTS will be used by the GradleWrapperMain, which then executes different parts of the build in new JVMs
+          // (those are configured elsewhere - e.g. in the gradle.properties or directly in the gradle.build file)
+          env.JAVA_OPTS = "-Xms256m -Xmx256m"
+          dir('job-dsl') {
+            // Ensure that local plugins are deployed to local Maven
+            // repo to be picked up for testing
+            sh("./gradlew clean publishToMavenLocal --info")
+            // Run tests
+            sh("./gradlew test --info")
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts(artifacts: "**/build/debug-xml/**", allowEmptyArchive: true)
+      junit("**/build/test-results/**/TEST-*.xml")
+    }
+  }
+}
